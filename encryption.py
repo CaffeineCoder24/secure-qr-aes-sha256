@@ -1,159 +1,76 @@
-import base64
-# Reading input Image and encoding it using base64
- 
-with open(r'/Users/priyanshusingh/Desktop/CRYPTO PROJ/content/qr_code_barcode.jpg', "rb") as img_file:
-    BI = base64.b64encode(img_file.read())
-print(BI)
-BI = BI.decode("utf-8")
-import hashlib
-# My key
-K = ""
-f = open(r'/Users/priyanshusingh/Desktop/CRYPTO PROJ/content/key.txt','r')
- 
-
-for i in f:
-    K += i
-f.close()
-K
-SK = hashlib.sha256(K.encode())
- 
-print("The hexadecimal equivalent of SHA256 is : ")
-print(SK.hexdigest())
-# AES 256 in OFB mode:
-from Crypto.Cipher import AES
-from Crypto.Random import new as Random
-from hashlib import sha256
-from base64 import b64encode,b64decode
- 
-class AESCipher:
-    def __init__(self,data,key):
-        self.block_size = 16
-        self.data = data
-        self.key = sha256(key.encode()).digest()[:32]
-        self.pad = lambda s: s + (self.block_size - len(s) % self.block_size) * chr (self.block_size - len(s) % self.block_size)
-        self.unpad = lambda s: s[:-ord(s[len(s) - 1:])]
- 
-    def encrypt(self):
-        plain_text = self.pad(self.data)
-        iv = Random().read(AES.block_size)
-        cipher = AES.new(self.key,AES.MODE_OFB,iv)
-        return b64encode(iv + cipher.encrypt(plain_text.encode())).decode()
-    # Encrypting image using base 64 encoded text and hashed key - SHA256
-# AES-256
-c = AESCipher(BI,SK.hexdigest()).encrypt()
-print(c)
-import numpy as np
 import cv2
-w = 255
-h = len(K)
-# creating new Image C of size(w,h)
-# initializing as blank
-C = np.ones((h,w,1), dtype = 'uint8')
-# Filling pixels in C
-for i in range(h):
-    j = ord(K[i])
-    for k in range(w):
-        if k < j:
-            C[i][k][0] = 0
-        else:
-            break
- 
-# initializing R and P of same size as C
-R = np.ones((h,w,3), dtype = 'uint8')
-P = np.ones((h,w,3), dtype = 'uint8')
-# filling the pixels of R
-for i in range(h):
-    for j in range(w):
-        r = np.random.normal(0,1,1)
-        R[i][j][0] = r
-        # filling the pixels of P
-for i in range(h):
-    for j in range(w):
-        p = R[i][j][0] ^ C[i][j][0]
-        P[i][j][0] = p
-f# Specify the output directory where R.png and P.png will be saved
-output_dir = r'content'
- 
-# Save R.png and P.png images
-import os
- 
-filename_R = os.path.join(output_dir, 'R.png')
-filename_P = os.path.join(output_dir, 'P.png')
- 
-# Use cv2.imwrite() to save the images
-cv2.imwrite(filename_R, R)
-cv2.imwrite(filename_P, P)
- 
-# Print a message indicating successful image saving
-print("Images R.png and P.png saved successfully.")
- 
-import pandas as pd
-xdf = pd.DataFrame(columns = ['1','2'])
-a = []
-b = []
-for i in P:
-    k = 0
-    n1 = []
-    n2 = []
-    for j in i:
-        if k%2==0:
-            n1.append(np.sum(j))
-        else:
-            n2.append(np.sum(j))
-        k += 1
-    a.append(sum(n1))
-    b.append(sum(n2))
-xdf['1'] = a
-xdf['2'] = b
-ydf = pd.DataFrame(columns = ['1','2'])
-a = []
-b = []
-for i in R:
-    k = 0
-    n1 = []
-    n2 = []
-    for j in i:
-        if k%2==0:
-            n1.append(np.sum(j))
-        else:
-            n2.append(np.sum(j))
-        k += 1
-    a.append(sum(n1))
-    b.append(sum(n2))
-ydf['1'] = a
-ydf['2'] = b
-from sklearn.linear_model import LinearRegression
-LRmodel = LinearRegression()
-LRmodel.fit(xdf,ydf)
-# z is for prediction
-zdf = pd.DataFrame(columns = ['1','2'])
-a = []
-b = []
-for i in C:
-    k = 0
-    n1 = []
-    n2 = []
-    for j in i:
-        if k%2==0:
-            n1.append(np.sum(j))
-        else:
-            n2.append(np.sum(j))
-        k += 1
-    a.append(sum(n1))
-    b.append(sum(n2))
-zdf['1'] = a
-zdf['2'] = b
-predict = LRmodel.predict([[sum(zdf['1']),sum(zdf['2'])]])
-x = round(predict[0][0])%26
-y = round(predict[0][1])%26
-txt = []
-for each in c:
-    ch = ord(each) + x - y
-    txt.append(int(ch))
-text = ""
-for t in txt:
-    text += chr(t) + " "
-    f = open(r"content/cipher2.txt", 'a', encoding='utf-8')
- 
-f.write(text)
-f.close()
+import numpy as np
+
+# Load P.png and R.png images
+P = cv2.imread('/Users/priyanshusingh/Desktop/CRYPTO PROJ/content/P.png', cv2.IMREAD_COLOR)
+R = cv2.imread('/Users/priyanshusingh/Desktop/CRYPTO PROJ/content/R.png', cv2.IMREAD_COLOR)
+
+# Get image dimensions
+height, width, _ = P.shape
+
+# Reconstruct C by XORing P and R
+C = np.zeros((height, width, 1), dtype=np.uint8)
+for i in range(height):
+    for j in range(width):
+        C[i][j][0] = P[i][j][0] ^ R[i][j][0]
+
+# Read the key from key.txt
+with open('/Users/priyanshusingh/Desktop/CRYPTO PROJ/content/key.txt', 'r') as f:
+    key = f.read().strip()
+
+# Decode the encrypted text from cipher2.txt
+with open('/Users/priyanshusingh/Desktop/CRYPTO PROJ/content/cipher2.txt', 'r', encoding='utf-8') as f:
+    encrypted_text = f.read()
+
+# Decrypt the text using AES-256 in OFB mode
+import hashlib
+from Crypto.Cipher import AES
+from Crypto.Random import get_random_bytes
+import re
+from base64 import b64decode
+
+def aes_decrypt(encrypted_data, key):
+    cipher = AES.new(hashlib.sha256(key.encode()).digest()[:32], AES.MODE_OFB)
+
+    # Remove non-Base64 characters from the input string
+    encrypted_data = re.sub(r'[^A-Za-z0-9+/=]', '', encrypted_data)
+    encrypted_data = encrypted_data.encode('utf-8')  # Convert to bytes
+
+    try:
+        encrypted_data = b64decode(encrypted_data, validate=True)  # Decode Base64
+    except (ValueError):
+        # Handle non-Base64 characters by ignoring them
+        encrypted_data = b64decode(encrypted_data, validate=False)
+
+    iv = encrypted_data[:16]
+    ciphertext = encrypted_data[16:]
+    cipher.iv = iv
+    decrypted_text = cipher.decrypt(ciphertext).decode('utf-8', errors='replace')
+    return decrypted_text
+
+# Decrypt the encrypted text
+decrypted_text = aes_decrypt(encrypted_text, key)
+
+# Convert the decrypted text back to binary
+binary_data = bytearray(decrypted_text.replace(" ", ""), encoding='utf-8')
+
+# Regenerate the QR code
+import qrcode
+
+# Create a QR code instance
+qr = qrcode.QRCode(
+    version=1,
+    error_correction=qrcode.constants.ERROR_CORRECT_L,
+    box_size=10,
+    border=4,
+)
+
+# Add the binary data to the QR code
+qr.add_data(binary_data)
+qr.make(fit=True)
+
+# Generate the QR code image
+img = qr.make_image(fill_color="black", back_color="white")
+
+# Save the QR code image
+img.save("/Users/priyanshusingh/Desktop/CRYPTO PROJ/content/regenerated_qr_code.png")
